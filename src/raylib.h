@@ -1121,6 +1121,7 @@ RLAPI void MeshTangents(Mesh *mesh);                                            
 RLAPI void MeshBinormals(Mesh *mesh);                                                                   // Compute mesh binormals
 
 // Mesh generation functions
+RLAPI Mesh GenMesh(Mesh mesh);                  // Generate mesh from mesh ...
 RLAPI Mesh GenMeshPlane(float width, float length, int resX, int resZ);                                 // Generate plane mesh (with subdivisions)
 RLAPI Mesh GenMeshCube(float width, float height, float length);                                        // Generate cuboid mesh
 RLAPI Mesh GenMeshSphere(float radius, int rings, int slices);                                          // Generate sphere mesh (standard sphere)
