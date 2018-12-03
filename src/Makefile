@@ -63,14 +63,6 @@ RAYLIB_BUILD_MODE    ?= RELEASE
 # NOTE: Some programs like tools could not require audio support
 INCLUDE_AUDIO_MODULE ?= TRUE
 
-# Use OpenAL Soft backend for audio
-USE_OPENAL_BACKEND   ?= FALSE
-
-# OpenAL Soft audio backend forced on HTML5 and OSX (see below)
-ifeq ($(PLATFORM),PLATFORM_WEB)
-    USE_OPENAL_BACKEND = TRUE
-endif
-
 # Use external GLFW library instead of rglfw module
 # TODO: Review usage of examples on Linux.
 USE_EXTERNAL_GLFW    ?= FALSE
@@ -154,18 +146,11 @@ endif
 #    RAYLIB_PATH       ?= /home/pi/raylib
 #endif
 
-# Force OpenAL Soft audio backend for OSX platform
-# NOTE 1: mini_al library does not support CoreAudio yet
-# NOTE 2: Required OpenAL libraries should be available on OSX
-ifeq ($(PLATFORM_OS),OSX)
-    USE_OPENAL_BACKEND = TRUE
-endif
-
 ifeq ($(PLATFORM),PLATFORM_WEB)
     # Emscripten required variables
     EMSDK_PATH          = C:/emsdk
-    EMSCRIPTEN_VERSION  = 1.38.8
-    CLANG_VERSION       = e1.38.8_64bit
+    EMSCRIPTEN_VERSION  = 1.38.20
+    CLANG_VERSION       = e1.38.20_64bit
     PYTHON_VERSION      = 2.7.13.1_64bit\python-2.7.13.amd64
     NODE_VERSION        = 8.9.1_64bit
     export PATH         = $(EMSDK_PATH);$(EMSDK_PATH)\clang\$(CLANG_VERSION);$(EMSDK_PATH)\node\$(NODE_VERSION)\bin;$(EMSDK_PATH)\python\$(PYTHON_VERSION);$(EMSDK_PATH)\emscripten\$(EMSCRIPTEN_VERSION);C:\raylib\MinGW\bin:$$(PATH)
@@ -194,33 +179,32 @@ ifeq ($(PLATFORM),PLATFORM_ANDROID)
     endif
 endif
 
-# RAYLIB_RELEASE_PATH points to provided binaries or your immediate build of raylib.
-# It is further modified below by PLATFORM below.
-RAYLIB_RELEASE_PATH  ?= $(RAYLIB_PATH)/release/libs
+# RAYLIB_RELEASE_PATH points to library build path, right now 
+RAYLIB_RELEASE_PATH  ?= $(RAYLIB_PATH)/src
 
 # Define output directory for compiled library
 ifeq ($(PLATFORM),PLATFORM_DESKTOP)
     ifeq ($(PLATFORM_OS),WINDOWS)
-        RAYLIB_RELEASE_PATH = $(RAYLIB_PATH)\release\libs\win32\mingw32
+        RAYLIB_RELEASE_PATH = $(RAYLIB_PATH)\mingw\i686-w64-mingw32\lib
     endif
     ifeq ($(PLATFORM_OS),LINUX)
-        RAYLIB_RELEASE_PATH = $(RAYLIB_PATH)/release/libs/linux
+        RAYLIB_RELEASE_PATH = $(RAYLIB_PATH)/src
     endif
     ifeq ($(PLATFORM_OS),OSX)
-        RAYLIB_RELEASE_PATH = $(RAYLIB_PATH)/release/libs/osx
+        RAYLIB_RELEASE_PATH = $(RAYLIB_PATH)/src
     endif
     ifeq ($(PLATFORM_OS),BSD)
-        RAYLIB_RELEASE_PATH = $(RAYLIB_PATH)/release/libs/bsd
+        RAYLIB_RELEASE_PATH = $(RAYLIB_PATH)/src
     endif
 endif
 ifeq ($(PLATFORM),PLATFORM_RPI)
-    RAYLIB_RELEASE_PATH = $(RAYLIB_PATH)/release/libs/rpi
+    RAYLIB_RELEASE_PATH = $(RAYLIB_PATH)/src
 endif
 ifeq ($(PLATFORM),PLATFORM_WEB)
-    RAYLIB_RELEASE_PATH = $(RAYLIB_PATH)/release/libs/html5
+    RAYLIB_RELEASE_PATH = $(RAYLIB_PATH)/src
 endif
 ifeq ($(PLATFORM),PLATFORM_ANDROID)
-    RAYLIB_RELEASE_PATH = $(RAYLIB_PATH)/release/libs/android/$(ANDROID_ARCH_NAME)
+    RAYLIB_RELEASE_PATH = $(RAYLIB_PATH)/src/android/$(ANDROID_ARCH_NAME)
 endif
 
 # Define raylib graphics api depending on selected platform
@@ -316,7 +300,7 @@ ifeq ($(PLATFORM),PLATFORM_WEB)
     # -s ALLOW_MEMORY_GROWTH=1   # to allow memory resizing
     # -s TOTAL_MEMORY=16777216   # to specify heap memory size (default = 16MB)
     # -s USE_PTHREADS=1          # multithreading support
-    CFLAGS += -s USE_GLFW=3 -s ASSERTIONS=1 --profiling
+    CFLAGS += -s USE_GLFW=3 -s USE_SDL=2 -s ASSERTIONS=1 --profiling
 endif
 ifeq ($(PLATFORM),PLATFORM_ANDROID)
     # Compiler flags for arquitecture
@@ -343,11 +327,6 @@ ifeq ($(RAYLIB_LIBTYPE),SHARED)
     CFLAGS += -fPIC -DBUILD_LIBTYPE_SHARED
 endif
 
-# Use OpenAL Soft backend instead of mini_al
-ifeq ($(USE_OPENAL_BACKEND),TRUE)
-    CFLAGS += -DUSE_OPENAL_BACKEND
-endif
-
 # Use Wayland display on Linux desktop
 ifeq ($(PLATFORM),PLATFORM_DESKTOP)
     ifeq ($(PLATFORM_OS), LINUX)
@@ -359,7 +338,7 @@ endif
 
 # Define include paths for required headers
 # NOTE: Several external required libraries (stb and others)
-INCLUDE_PATHS = -I. -Iexternal -Iexternal/glfw/include
+INCLUDE_PATHS = -I. -Iexternal/glfw/include
 
 ifeq ($(PLATFORM),PLATFORM_DESKTOP)
     ifeq ($(PLATFORM_OS),BSD)
@@ -426,9 +405,7 @@ endif
 ifeq ($(INCLUDE_AUDIO_MODULE),TRUE)
     OBJS += audio.o
     OBJS += stb_vorbis.o
-    ifeq ($(USE_OPENAL_BACKEND),FALSE)
-        OBJS += mini_al.o
-    endif
+    OBJS += mini_al.o
 endif
 
 ifeq ($(PLATFORM),PLATFORM_ANDROID)
@@ -462,16 +439,16 @@ endif
 # Compile raylib library
 # NOTE: Release directory is created if not exist
 raylib: $(OBJS)
-ifeq ($(PLATFORM_OS),WINDOWS)
-	if not exist $(RAYLIB_RELEASE_PATH) mkdir $(RAYLIB_RELEASE_PATH)
-else
-	mkdir -p $(RAYLIB_RELEASE_PATH)
-endif
 ifeq ($(PLATFORM),PLATFORM_WEB)
     # Compile raylib for web.
 	emcc -O1 $(OBJS) -o $(RAYLIB_RELEASE_PATH)/libraylib.bc
 	@echo "raylib library generated (libraylib.bc)!"
 else
+    ifeq ($(PLATFORM_OS),WINDOWS)
+		if not exist $(RAYLIB_RELEASE_PATH) mkdir $(RAYLIB_RELEASE_PATH)
+    else
+		mkdir -p $(RAYLIB_RELEASE_PATH)
+    endif
     ifeq ($(RAYLIB_LIBTYPE),SHARED)
         ifeq ($(PLATFORM),PLATFORM_DESKTOP)
             ifeq ($(PLATFORM_OS),WINDOWS)

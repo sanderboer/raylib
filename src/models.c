@@ -2533,8 +2533,6 @@ static Material LoadMTL(const char *fileName)
             {
                 // TODO: Support multiple materials in a single .mtl
                 sscanf(buffer, "newmtl %127s", mapFileName);
-
-                TraceLog(LOG_INFO, "[%s] Loading material...", mapFileName);
             }
             case 'i':   // illum int        Illumination model
             {

@@ -130,7 +130,8 @@
 
 #define RL_WRAP_REPEAT                  0x2901      // GL_REPEAT
 #define RL_WRAP_CLAMP                   0x812F      // GL_CLAMP_TO_EDGE
-#define RL_WRAP_CLAMP_MIRROR            0x8742      // GL_MIRROR_CLAMP_EXT
+#define RL_WRAP_MIRROR_REPEAT           0x8370      // GL_MIRRORED_REPEAT
+#define RL_WRAP_MIRROR_CLAMP            0x8742      // GL_MIRROR_CLAMP_EXT
 
 // Matrix modes (equivalent to OpenGL)
 #define RL_MODELVIEW                    0x1700      // GL_MODELVIEW
@@ -199,7 +200,7 @@ typedef unsigned char byte;
         float *tangents;        // vertex tangents (XYZW - 4 components per vertex) (shader-location = 4)
         unsigned char *colors;  // vertex colors (RGBA - 4 components per vertex) (shader-location = 3)
         unsigned short *indices;// vertex indices (in case vertex data comes indexed)
-        
+
         // Animation vertex data
         float *baseVertices;    // Vertex base position (required to apply bones transformations)
         float *baseNormals;     // Vertex base normals (required to apply bones transformations)
@@ -303,13 +304,6 @@ typedef unsigned char byte;
         FILTER_ANISOTROPIC_16X,         // Anisotropic filtering 16x
     } TextureFilterMode;
 
-    // Texture parameters: wrap mode
-    typedef enum {
-        WRAP_REPEAT = 0,
-        WRAP_CLAMP,
-        WRAP_MIRROR
-    } TextureWrapMode;
-
     // Color blending modes (pre-defined)
     typedef enum {
         BLEND_ALPHA = 0,
@@ -378,7 +372,7 @@ typedef unsigned char byte;
     } VrDevice;
 #endif
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 extern "C" {            // Prevents name mangling of functions
 #endif
 
@@ -446,9 +440,11 @@ void rlLoadExtensions(void *loader);            // Load OpenGL extensions
 Vector3 rlUnproject(Vector3 source, Matrix proj, Matrix view);  // Get world coordinates from screen coordinates
 
 // Textures data management
-unsigned int rlLoadTexture(void *data, int width, int height, int format, int mipmapCount);    // Load texture in GPU
-void rlUpdateTexture(unsigned int id, int width, int height, int format, const void *data);    // Update GPU texture with new data
-void rlUnloadTexture(unsigned int id);
+unsigned int rlLoadTexture(void *data, int width, int height, int format, int mipmapCount); // Load texture in GPU
+void rlUpdateTexture(unsigned int id, int width, int height, int format, const void *data); // Update GPU texture with new data
+void rlGetGlTextureFormats(int format, unsigned int *glInternalFormat, unsigned int *glFormat, unsigned int *glType);  // Get OpenGL internal formats
+void rlUnloadTexture(unsigned int id);                              // Unload texture from GPU memory
+
 void rlGenerateMipmaps(Texture2D *texture);                         // Generate mipmap data for selected texture
 void *rlReadTexturePixels(Texture2D texture);                       // Read texture pixel data
 unsigned char *rlReadScreenPixels(int width, int height);           // Read screen pixel data (color buffer)
@@ -514,7 +510,7 @@ void TraceLog(int msgType, const char *text, ...);      // Show trace log messag
 int GetPixelDataSize(int width, int height, int format);// Get pixel data size in bytes (image or texture)
 #endif
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 }
 #endif
 
@@ -551,7 +547,7 @@ int GetPixelDataSize(int width, int height, int format);// Get pixel data size i
     #else
         // APIENTRY for OpenGL function pointer declarations is required
         #ifndef APIENTRY
-            #ifdef _WIN32
+            #if defined(_WIN32)
                 #define APIENTRY __stdcall
             #else
                 #define APIENTRY
@@ -727,7 +723,7 @@ typedef struct VrStereoConfig {
 //----------------------------------------------------------------------------------
 #if !defined(GRAPHICS_API_OPENGL_11) && defined(SUPPORT_DISTORTION_SHADER)
     // Distortion shader embedded
-    static char distortionFShaderStr[] = 
+    static char distortionFShaderStr[] =
     #if defined(GRAPHICS_API_OPENGL_21)
     "#version 120                       \n"
     #elif defined(GRAPHICS_API_OPENGL_ES2)
@@ -861,7 +857,7 @@ static bool texAnisotropicFilterSupported = false;  // Anisotropic texture filte
 static float maxAnisotropicLevel = 0.0f;            // Maximum anisotropy level supported (minimum is 2.0f)
 
 // Extension supported flag: Clamp mirror wrap mode
-static bool texClampMirrorSupported = false;        // Clamp mirror wrap mode supported
+static bool texMirrorClampSupported = false;        // Clamp mirror wrap mode supported
 
 #if defined(GRAPHICS_API_OPENGL_ES2)
 // NOTE: VAO functionality is exposed through extensions (OES)
@@ -912,9 +908,6 @@ static void SetStereoView(int eye, Matrix matProjection, Matrix matModelView); /
 #endif
 
 #endif  // defined(GRAPHICS_API_OPENGL_33) || defined(GRAPHICS_API_OPENGL_ES2)
-
-// Get OpenGL internal formats and data type from raylib PixelFormat
-static void GetGlFormats(int format, int *glInternalFormat, int *glFormat, int *glType);
 
 #if defined(GRAPHICS_API_OPENGL_11)
 static int GenerateMipmaps(unsigned char *data, int baseWidth, int baseHeight);
@@ -1218,9 +1211,9 @@ void rlEnd(void)
         // WARNING: If we are between rlPushMatrix() and rlPopMatrix() and we need to force a rlglDraw(),
         // we need to call rlPopMatrix() before to recover *currentMatrix (modelview) for the next forced draw call!
         // Also noted that if we had multiple matrix pushed, it will require "stackCounter" pops before launching the draw
-        
+
         // TODO: Undoubtely, current rlPushMatrix/rlPopMatrix should be redesigned... or removed... it's not working properly
-        
+
         rlPopMatrix();
         rlglDraw();
     }
@@ -1424,7 +1417,7 @@ void rlTextureParameters(unsigned int id, int param, int value)
         case RL_TEXTURE_WRAP_S:
         case RL_TEXTURE_WRAP_T:
         {
-            if ((value == RL_WRAP_CLAMP_MIRROR) && !texClampMirrorSupported) TraceLog(LOG_WARNING, "Clamp mirror wrap mode not supported");
+            if ((value == RL_WRAP_MIRROR_CLAMP) && !texMirrorClampSupported) TraceLog(LOG_WARNING, "Clamp mirror wrap mode not supported");
             else glTexParameteri(GL_TEXTURE_2D, param, value);
         } break;
         case RL_TEXTURE_MAG_FILTER:
@@ -1507,9 +1500,17 @@ void rlDeleteTextures(unsigned int id)
 void rlDeleteRenderTextures(RenderTexture2D target)
 {
 #if defined(GRAPHICS_API_OPENGL_33) || defined(GRAPHICS_API_OPENGL_ES2)
-    if (target.id > 0) glDeleteFramebuffers(1, &target.id);
     if (target.texture.id > 0) glDeleteTextures(1, &target.texture.id);
-    if (target.depth.id > 0) glDeleteTextures(1, &target.depth.id);
+    if (target.depth.id > 0)
+    {
+#if defined(GRAPHICS_API_OPENGL_21) || defined(GRAPHICS_API_OPENGL_ES2)
+        glDeleteRenderbuffers(1, &target.depth.id);
+#elif defined(GRAPHICS_API_OPENGL_33)
+        glDeleteTextures(1, &target.depth.id);
+#endif
+    }
+
+    if (target.id > 0) glDeleteFramebuffers(1, &target.id);
 
     TraceLog(LOG_INFO, "[FBO ID %i] Unloaded render texture data from VRAM (GPU)", target.id);
 #endif
@@ -1621,7 +1622,7 @@ void rlglInit(int width, int height)
     // NOTE: We don't need to check again supported extensions but we do (GLAD already dealt with that)
     glGetIntegerv(GL_NUM_EXTENSIONS, &numExt);
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
     const char **extList = malloc(sizeof(const char *)*numExt);
 #else
     const char *extList[numExt];
@@ -1632,17 +1633,13 @@ void rlglInit(int width, int height)
 #elif defined(GRAPHICS_API_OPENGL_ES2)
     char *extensions = (char *)glGetString(GL_EXTENSIONS);  // One big const string
 
-    // NOTE: We have to duplicate string because glGetString() returns a const value
-    // If not duplicated, it fails in some systems (Raspberry Pi)
-    // Equivalent to function: char *strdup(const char *str)
-    char *extensionsDup;
-    size_t len = strlen(extensions) + 1;
-    void *newstr = malloc(len);
-    if (newstr == NULL) extensionsDup = NULL;
-    extensionsDup = (char *)memcpy(newstr, extensions, len);
+    // NOTE: We have to duplicate string because glGetString() returns a const string
+    int len = strlen(extensions) + 1;
+    char *extensionsDup = (char *)malloc(len);
+    strcpy(extensionsDup, extensions);
 
     // NOTE: String could be splitted using strtok() function (string.h)
-    // NOTE: strtok() modifies the received string, it can not be const
+    // NOTE: strtok() modifies the passed string, it can not be const
 
     char *extList[512];     // Allocate 512 strings pointers (2 KB)
 
@@ -1716,14 +1713,14 @@ void rlglInit(int width, int height)
         }
 
         // Clamp mirror wrap mode supported
-        if (strcmp(extList[i], (const char *)"GL_EXT_texture_mirror_clamp") == 0) texClampMirrorSupported = true;
+        if (strcmp(extList[i], (const char *)"GL_EXT_texture_mirror_clamp") == 0) texMirrorClampSupported = true;
 
         // Debug marker support
         if(strcmp(extList[i], (const char *)"GL_EXT_debug_marker") == 0) debugMarkerSupported = true;
     }
 
-#if defined(_MSC_VER)
-    //free(extList);
+#if defined(_WIN32) && defined(_MSC_VER)
+    free(extList);
 #endif
 
 #if defined(GRAPHICS_API_OPENGL_ES2)
@@ -1741,7 +1738,7 @@ void rlglInit(int width, int height)
     if (texCompASTCSupported) TraceLog(LOG_INFO, "[EXTENSION] ASTC compressed textures supported");
 
     if (texAnisotropicFilterSupported) TraceLog(LOG_INFO, "[EXTENSION] Anisotropic textures filtering supported (max: %.0fX)", maxAnisotropicLevel);
-    if (texClampMirrorSupported) TraceLog(LOG_INFO, "[EXTENSION] Clamp mirror wrap texture mode supported");
+    if (texMirrorClampSupported) TraceLog(LOG_INFO, "[EXTENSION] Mirror clamp wrap texture mode supported");
 
     if (debugMarkerSupported) TraceLog(LOG_INFO, "[EXTENSION] Debug Marker supported");
 
@@ -2015,8 +2012,8 @@ unsigned int rlLoadTexture(void *data, int width, int height, int format, int mi
     {
         unsigned int mipSize = GetPixelDataSize(mipWidth, mipHeight, format);
 
-        int glInternalFormat, glFormat, glType;
-        GetGlFormats(format, &glInternalFormat, &glFormat, &glType);
+        unsigned int glInternalFormat, glFormat, glType;
+        rlGetGlTextureFormats(format, &glInternalFormat, &glFormat, &glType);
 
         TraceLog(LOG_DEBUG, "Load mipmap level %i (%i x %i), size: %i, offset: %i", i, mipWidth, mipHeight, mipSize, mipOffset);
 
@@ -2105,8 +2102,8 @@ void rlUpdateTexture(unsigned int id, int width, int height, int format, const v
 {
     glBindTexture(GL_TEXTURE_2D, id);
 
-    int glInternalFormat, glFormat, glType;
-    GetGlFormats(format, &glInternalFormat, &glFormat, &glType);
+    unsigned int glInternalFormat, glFormat, glType;
+    rlGetGlTextureFormats(format, &glInternalFormat, &glFormat, &glType);
 
     if ((glInternalFormat != -1) && (format < COMPRESSED_DXT1_RGB))
     {
@@ -2115,17 +2112,68 @@ void rlUpdateTexture(unsigned int id, int width, int height, int format, const v
     else TraceLog(LOG_WARNING, "Texture format updating not supported");
 }
 
+// Get OpenGL internal formats and data type from raylib PixelFormat
+void rlGetGlTextureFormats(int format, unsigned int *glInternalFormat, unsigned int *glFormat, unsigned int *glType)
+{
+    *glInternalFormat = -1;
+    *glFormat = -1;
+    *glType = -1;
+
+    switch (format)
+    {
+    #if defined(GRAPHICS_API_OPENGL_11) || defined(GRAPHICS_API_OPENGL_21) || defined(GRAPHICS_API_OPENGL_ES2)
+        // NOTE: on OpenGL ES 2.0 (WebGL), internalFormat must match format and options allowed are: GL_LUMINANCE, GL_RGB, GL_RGBA
+        case UNCOMPRESSED_GRAYSCALE: *glInternalFormat = GL_LUMINANCE; *glFormat = GL_LUMINANCE; *glType = GL_UNSIGNED_BYTE; break;
+        case UNCOMPRESSED_GRAY_ALPHA: *glInternalFormat = GL_LUMINANCE_ALPHA; *glFormat = GL_LUMINANCE_ALPHA; *glType = GL_UNSIGNED_BYTE; break;
+        case UNCOMPRESSED_R5G6B5: *glInternalFormat = GL_RGB; *glFormat = GL_RGB; *glType = GL_UNSIGNED_SHORT_5_6_5; break;
+        case UNCOMPRESSED_R8G8B8: *glInternalFormat = GL_RGB; *glFormat = GL_RGB; *glType = GL_UNSIGNED_BYTE; break;
+        case UNCOMPRESSED_R5G5B5A1: *glInternalFormat = GL_RGBA; *glFormat = GL_RGBA; *glType = GL_UNSIGNED_SHORT_5_5_5_1; break;
+        case UNCOMPRESSED_R4G4B4A4: *glInternalFormat = GL_RGBA; *glFormat = GL_RGBA; *glType = GL_UNSIGNED_SHORT_4_4_4_4; break;
+        case UNCOMPRESSED_R8G8B8A8: *glInternalFormat = GL_RGBA; *glFormat = GL_RGBA; *glType = GL_UNSIGNED_BYTE; break;
+        #if !defined(GRAPHICS_API_OPENGL_11)
+        case UNCOMPRESSED_R32: if (texFloatSupported) *glInternalFormat = GL_LUMINANCE; *glFormat = GL_LUMINANCE; *glType = GL_FLOAT; break;   // NOTE: Requires extension OES_texture_float
+        case UNCOMPRESSED_R32G32B32: if (texFloatSupported) *glInternalFormat = GL_RGB; *glFormat = GL_RGB; *glType = GL_FLOAT; break;         // NOTE: Requires extension OES_texture_float
+        case UNCOMPRESSED_R32G32B32A32: if (texFloatSupported) *glInternalFormat = GL_RGBA; *glFormat = GL_RGBA; *glType = GL_FLOAT; break;    // NOTE: Requires extension OES_texture_float
+        #endif
+    #elif defined(GRAPHICS_API_OPENGL_33)
+        case UNCOMPRESSED_GRAYSCALE: *glInternalFormat = GL_R8; *glFormat = GL_RED; *glType = GL_UNSIGNED_BYTE; break;
+        case UNCOMPRESSED_GRAY_ALPHA: *glInternalFormat = GL_RG8; *glFormat = GL_RG; *glType = GL_UNSIGNED_BYTE; break;
+        case UNCOMPRESSED_R5G6B5: *glInternalFormat = GL_RGB565; *glFormat = GL_RGB; *glType = GL_UNSIGNED_SHORT_5_6_5; break;
+        case UNCOMPRESSED_R8G8B8: *glInternalFormat = GL_RGB8; *glFormat = GL_RGB; *glType = GL_UNSIGNED_BYTE; break;
+        case UNCOMPRESSED_R5G5B5A1: *glInternalFormat = GL_RGB5_A1; *glFormat = GL_RGBA; *glType = GL_UNSIGNED_SHORT_5_5_5_1; break;
+        case UNCOMPRESSED_R4G4B4A4: *glInternalFormat = GL_RGBA4; *glFormat = GL_RGBA; *glType = GL_UNSIGNED_SHORT_4_4_4_4; break;
+        case UNCOMPRESSED_R8G8B8A8: *glInternalFormat = GL_RGBA8; *glFormat = GL_RGBA; *glType = GL_UNSIGNED_BYTE; break;
+        case UNCOMPRESSED_R32: if (texFloatSupported) *glInternalFormat = GL_R32F; *glFormat = GL_RED; *glType = GL_FLOAT; break;
+        case UNCOMPRESSED_R32G32B32: if (texFloatSupported) *glInternalFormat = GL_RGB32F; *glFormat = GL_RGB; *glType = GL_FLOAT; break;
+        case UNCOMPRESSED_R32G32B32A32: if (texFloatSupported) *glInternalFormat = GL_RGBA32F; *glFormat = GL_RGBA; *glType = GL_FLOAT; break;
+    #endif
+        #if !defined(GRAPHICS_API_OPENGL_11)
+        case COMPRESSED_DXT1_RGB: if (texCompDXTSupported) *glInternalFormat = GL_COMPRESSED_RGB_S3TC_DXT1_EXT; break;
+        case COMPRESSED_DXT1_RGBA: if (texCompDXTSupported) *glInternalFormat = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT; break;
+        case COMPRESSED_DXT3_RGBA: if (texCompDXTSupported) *glInternalFormat = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT; break;
+        case COMPRESSED_DXT5_RGBA: if (texCompDXTSupported) *glInternalFormat = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT; break;
+        case COMPRESSED_ETC1_RGB: if (texCompETC1Supported) *glInternalFormat = GL_ETC1_RGB8_OES; break;                      // NOTE: Requires OpenGL ES 2.0 or OpenGL 4.3
+        case COMPRESSED_ETC2_RGB: if (texCompETC2Supported) *glInternalFormat = GL_COMPRESSED_RGB8_ETC2; break;               // NOTE: Requires OpenGL ES 3.0 or OpenGL 4.3
+        case COMPRESSED_ETC2_EAC_RGBA: if (texCompETC2Supported) *glInternalFormat = GL_COMPRESSED_RGBA8_ETC2_EAC; break;     // NOTE: Requires OpenGL ES 3.0 or OpenGL 4.3
+        case COMPRESSED_PVRT_RGB: if (texCompPVRTSupported) *glInternalFormat = GL_COMPRESSED_RGB_PVRTC_4BPPV1_IMG; break;    // NOTE: Requires PowerVR GPU
+        case COMPRESSED_PVRT_RGBA: if (texCompPVRTSupported) *glInternalFormat = GL_COMPRESSED_RGBA_PVRTC_4BPPV1_IMG; break;  // NOTE: Requires PowerVR GPU
+        case COMPRESSED_ASTC_4x4_RGBA: if (texCompASTCSupported) *glInternalFormat = GL_COMPRESSED_RGBA_ASTC_4x4_KHR; break;  // NOTE: Requires OpenGL ES 3.1 or OpenGL 4.3
+        case COMPRESSED_ASTC_8x8_RGBA: if (texCompASTCSupported) *glInternalFormat = GL_COMPRESSED_RGBA_ASTC_8x8_KHR; break;  // NOTE: Requires OpenGL ES 3.1 or OpenGL 4.3
+        #endif
+        default: TraceLog(LOG_WARNING, "Texture format not supported"); break;
+    }
+}
+
 // Unload texture from GPU memory
 void rlUnloadTexture(unsigned int id)
 {
     if (id > 0) glDeleteTextures(1, &id);
 }
 
-
 // Load a texture to be used for rendering (fbo with color and depth attachments)
 RenderTexture2D rlLoadRenderTexture(int width, int height)
 {
-    RenderTexture2D target;
+    RenderTexture2D target = { 0 };
 
     target.id = 0;
 
@@ -2205,8 +2253,16 @@ RenderTexture2D rlLoadRenderTexture(int width, int height)
             default: break;
         }
 
-        glDeleteTextures(1, &target.texture.id);
-        glDeleteTextures(1, &target.depth.id);
+        if (target.texture.id > 0) glDeleteTextures(1, &target.texture.id);
+        if (target.depth.id > 0)
+        {
+#if defined(USE_DEPTH_RENDERBUFFER)
+            glDeleteRenderbuffers(1, &target.depth.id);
+#elif defined(USE_DEPTH_TEXTURE)
+            glDeleteTextures(1, &target.depth.id);
+#endif
+        }
+
         glDeleteFramebuffers(1, &target.id);
     }
     else TraceLog(LOG_INFO, "[FBO ID %i] Framebuffer object created successfully", target.id);
@@ -2674,7 +2730,7 @@ void rlUnloadMesh(Mesh *mesh)
     if (mesh->tangents != NULL) free(mesh->tangents);
     if (mesh->texcoords2 != NULL) free(mesh->texcoords2);
     if (mesh->indices != NULL) free(mesh->indices);
-    
+
     if (mesh->baseVertices != NULL) free(mesh->baseVertices);
     if (mesh->baseNormals != NULL) free(mesh->baseNormals);
     if (mesh->weightBias != NULL) free(mesh->weightBias);
@@ -2745,8 +2801,8 @@ void *rlReadTexturePixels(Texture2D texture)
     // GL_UNPACK_ALIGNMENT affects operations that write to OpenGL memory (glTexImage, etc.)
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
 
-    int glInternalFormat, glFormat, glType;
-    GetGlFormats(texture.format, &glInternalFormat, &glFormat, &glType);
+    unsigned int glInternalFormat, glFormat, glType;
+    rlGetGlTextureFormats(texture.format, &glInternalFormat, &glFormat, &glType);
     unsigned int size = GetPixelDataSize(texture.width, texture.height, texture.format);
 
     if ((glInternalFormat != -1) && (texture.format < COMPRESSED_DXT1_RGB))
@@ -2881,23 +2937,20 @@ char *LoadText(const char *fileName)
     FILE *textFile;
     char *text = NULL;
 
-    int count = 0;
-
     if (fileName != NULL)
     {
-        textFile = fopen(fileName,"rt");
+        textFile = fopen(fileName,"r");
 
         if (textFile != NULL)
         {
             fseek(textFile, 0, SEEK_END);
-            count = ftell(textFile);
-            rewind(textFile);
+            int size = ftell(textFile);
+            fseek(textFile, 0, SEEK_SET);
 
-            if (count > 0)
+            if (size > 0)
             {
-                text = (char *)malloc(sizeof(char)*(count + 1));
-                count = fread(text, sizeof(char), count, textFile);
-                text[count] = '\0';
+                text = (char *)malloc(sizeof(char)*(size + 1));
+                fread(text, sizeof(char), size, textFile);
             }
 
             fclose(textFile);
@@ -3757,7 +3810,7 @@ static unsigned int LoadShaderProgram(unsigned int vShaderId, unsigned int fShad
 
         glGetProgramiv(program, GL_INFO_LOG_LENGTH, &maxLength);
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
         char *log = malloc(maxLength);
 #else
         char log[maxLength];
@@ -3766,7 +3819,7 @@ static unsigned int LoadShaderProgram(unsigned int vShaderId, unsigned int fShad
 
         TraceLog(LOG_INFO, "%s", log);
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
         free(log);
 #endif
         glDeleteProgram(program);
@@ -4590,58 +4643,6 @@ static void SetStereoView(int eye, Matrix matProjection, Matrix matModelView)
 #endif      // defined(SUPPORT_VR_SIMULATOR)
 
 #endif //defined(GRAPHICS_API_OPENGL_33) || defined(GRAPHICS_API_OPENGL_ES2)
-
-// Get OpenGL internal formats and data type from raylib PixelFormat
-static void GetGlFormats(int format, int *glInternalFormat, int *glFormat, int *glType)
-{
-    *glInternalFormat = -1;
-    *glFormat = -1;
-    *glType = -1;
-
-    switch (format)
-    {
-    #if defined(GRAPHICS_API_OPENGL_11) || defined(GRAPHICS_API_OPENGL_21) || defined(GRAPHICS_API_OPENGL_ES2)
-        // NOTE: on OpenGL ES 2.0 (WebGL), internalFormat must match format and options allowed are: GL_LUMINANCE, GL_RGB, GL_RGBA
-        case UNCOMPRESSED_GRAYSCALE: *glInternalFormat = GL_LUMINANCE; *glFormat = GL_LUMINANCE; *glType = GL_UNSIGNED_BYTE; break;
-        case UNCOMPRESSED_GRAY_ALPHA: *glInternalFormat = GL_LUMINANCE_ALPHA; *glFormat = GL_LUMINANCE_ALPHA; *glType = GL_UNSIGNED_BYTE; break;
-        case UNCOMPRESSED_R5G6B5: *glInternalFormat = GL_RGB; *glFormat = GL_RGB; *glType = GL_UNSIGNED_SHORT_5_6_5; break;
-        case UNCOMPRESSED_R8G8B8: *glInternalFormat = GL_RGB; *glFormat = GL_RGB; *glType = GL_UNSIGNED_BYTE; break;
-        case UNCOMPRESSED_R5G5B5A1: *glInternalFormat = GL_RGBA; *glFormat = GL_RGBA; *glType = GL_UNSIGNED_SHORT_5_5_5_1; break;
-        case UNCOMPRESSED_R4G4B4A4: *glInternalFormat = GL_RGBA; *glFormat = GL_RGBA; *glType = GL_UNSIGNED_SHORT_4_4_4_4; break;
-        case UNCOMPRESSED_R8G8B8A8: *glInternalFormat = GL_RGBA; *glFormat = GL_RGBA; *glType = GL_UNSIGNED_BYTE; break;
-        #if !defined(GRAPHICS_API_OPENGL_11)
-        case UNCOMPRESSED_R32: if (texFloatSupported) *glInternalFormat = GL_LUMINANCE; *glFormat = GL_LUMINANCE; *glType = GL_FLOAT; break;   // NOTE: Requires extension OES_texture_float
-        case UNCOMPRESSED_R32G32B32: if (texFloatSupported) *glInternalFormat = GL_RGB; *glFormat = GL_RGB; *glType = GL_FLOAT; break;         // NOTE: Requires extension OES_texture_float
-        case UNCOMPRESSED_R32G32B32A32: if (texFloatSupported) *glInternalFormat = GL_RGBA; *glFormat = GL_RGBA; *glType = GL_FLOAT; break;    // NOTE: Requires extension OES_texture_float
-        #endif
-    #elif defined(GRAPHICS_API_OPENGL_33)
-        case UNCOMPRESSED_GRAYSCALE: *glInternalFormat = GL_R8; *glFormat = GL_RED; *glType = GL_UNSIGNED_BYTE; break;
-        case UNCOMPRESSED_GRAY_ALPHA: *glInternalFormat = GL_RG8; *glFormat = GL_RG; *glType = GL_UNSIGNED_BYTE; break;
-        case UNCOMPRESSED_R5G6B5: *glInternalFormat = GL_RGB565; *glFormat = GL_RGB; *glType = GL_UNSIGNED_SHORT_5_6_5; break;
-        case UNCOMPRESSED_R8G8B8: *glInternalFormat = GL_RGB8; *glFormat = GL_RGB; *glType = GL_UNSIGNED_BYTE; break;
-        case UNCOMPRESSED_R5G5B5A1: *glInternalFormat = GL_RGB5_A1; *glFormat = GL_RGBA; *glType = GL_UNSIGNED_SHORT_5_5_5_1; break;
-        case UNCOMPRESSED_R4G4B4A4: *glInternalFormat = GL_RGBA4; *glFormat = GL_RGBA; *glType = GL_UNSIGNED_SHORT_4_4_4_4; break;
-        case UNCOMPRESSED_R8G8B8A8: *glInternalFormat = GL_RGBA8; *glFormat = GL_RGBA; *glType = GL_UNSIGNED_BYTE; break;
-        case UNCOMPRESSED_R32: if (texFloatSupported) *glInternalFormat = GL_R32F; *glFormat = GL_RED; *glType = GL_FLOAT; break;
-        case UNCOMPRESSED_R32G32B32: if (texFloatSupported) *glInternalFormat = GL_RGB32F; *glFormat = GL_RGB; *glType = GL_FLOAT; break;
-        case UNCOMPRESSED_R32G32B32A32: if (texFloatSupported) *glInternalFormat = GL_RGBA32F; *glFormat = GL_RGBA; *glType = GL_FLOAT; break;
-    #endif
-        #if !defined(GRAPHICS_API_OPENGL_11)
-        case COMPRESSED_DXT1_RGB: if (texCompDXTSupported) *glInternalFormat = GL_COMPRESSED_RGB_S3TC_DXT1_EXT; break;
-        case COMPRESSED_DXT1_RGBA: if (texCompDXTSupported) *glInternalFormat = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT; break;
-        case COMPRESSED_DXT3_RGBA: if (texCompDXTSupported) *glInternalFormat = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT; break;
-        case COMPRESSED_DXT5_RGBA: if (texCompDXTSupported) *glInternalFormat = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT; break;
-        case COMPRESSED_ETC1_RGB: if (texCompETC1Supported) *glInternalFormat = GL_ETC1_RGB8_OES; break;                      // NOTE: Requires OpenGL ES 2.0 or OpenGL 4.3
-        case COMPRESSED_ETC2_RGB: if (texCompETC2Supported) *glInternalFormat = GL_COMPRESSED_RGB8_ETC2; break;               // NOTE: Requires OpenGL ES 3.0 or OpenGL 4.3
-        case COMPRESSED_ETC2_EAC_RGBA: if (texCompETC2Supported) *glInternalFormat = GL_COMPRESSED_RGBA8_ETC2_EAC; break;     // NOTE: Requires OpenGL ES 3.0 or OpenGL 4.3
-        case COMPRESSED_PVRT_RGB: if (texCompPVRTSupported) *glInternalFormat = GL_COMPRESSED_RGB_PVRTC_4BPPV1_IMG; break;    // NOTE: Requires PowerVR GPU
-        case COMPRESSED_PVRT_RGBA: if (texCompPVRTSupported) *glInternalFormat = GL_COMPRESSED_RGBA_PVRTC_4BPPV1_IMG; break;  // NOTE: Requires PowerVR GPU
-        case COMPRESSED_ASTC_4x4_RGBA: if (texCompASTCSupported) *glInternalFormat = GL_COMPRESSED_RGBA_ASTC_4x4_KHR; break;  // NOTE: Requires OpenGL ES 3.1 or OpenGL 4.3
-        case COMPRESSED_ASTC_8x8_RGBA: if (texCompASTCSupported) *glInternalFormat = GL_COMPRESSED_RGBA_ASTC_8x8_KHR; break;  // NOTE: Requires OpenGL ES 3.1 or OpenGL 4.3
-        #endif
-        default: TraceLog(LOG_WARNING, "Texture format not supported"); break;
-    }
-}
 
 #if defined(GRAPHICS_API_OPENGL_11)
 // Mipmaps data is generated after image data

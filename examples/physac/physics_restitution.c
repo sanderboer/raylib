@@ -7,8 +7,9 @@
 *
 *   Use the following line to compile:
 *
-*   gcc -o $(NAME_PART).exe $(FILE_NAME) -s $(RAYLIB_DIR)\raylib\raylib.rc.o -static -lraylib -lpthread 
-*   -lglfw3 -lopengl32 -lgdi32 -lopenal32 -lwinmm -std=c99 -Wl,--subsystem,windows -Wl,-allow-multiple-definition
+*   gcc -o $(NAME_PART).exe $(FILE_NAME) -s -static  /
+*       -lraylib -lpthread -lglfw3 -lopengl32 -lgdi32 -lopenal32 -lwinmm /
+*       -std=c99 -Wl,--subsystem,windows -Wl,-allow-multiple-definition
 *   
 *   Copyright (c) 2016-2018 Victor Fisac
 *
@@ -51,6 +52,9 @@ int main()
     circleC->restitution = 1;
     
     SetTargetFPS(60);
+
+    // Restitution demo needs a very tiny physics time step for a proper simulation
+    SetPhysicsTimeStep(1.0/60.0/100 * 1000);
     //--------------------------------------------------------------------------------------
 
     // Main game loop
