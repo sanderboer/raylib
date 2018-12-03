@@ -717,13 +717,6 @@ void ExportMesh(Mesh mesh, const char *fileName)
 #if defined(SUPPORT_MESH_GENERATION)
 // Generate plane mesh (with subdivisions)
 
-Mesh GenMesh(Mesh mesh)
-{
-    // Upload vertex data to GPU (static mesh)
-    rlLoadMesh(&mesh, false);  
-    return mesh;
-}
-
 Mesh GenMeshPlane(float width, float length, int resX, int resZ)
 {
     Mesh mesh = { 0 };
