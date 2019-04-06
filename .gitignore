@@ -49,6 +49,7 @@ ipch/
 # Ignore compiled binaries
 *.o
 *.exe
+*.a
 !raylib.rc.o
 
 # Ignore all examples files
@@ -62,6 +63,8 @@ examples/*
 # Unignore examples Makefile
 !examples/Makefile
 !examples/Makefile.Android
+!examples/raylib_compile_execute.bat
+!examples/raylib_makefile_example.bat
 
 # Ignore all games files
 games/*
