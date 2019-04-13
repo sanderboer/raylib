@@ -17,7 +17,7 @@
 *
 *   LICENSE: zlib/libpng
 *
-*   Copyright (c) 2014-2018 Ramon Santamaria (@raysan5)
+*   Copyright (c) 2013-2019 Ramon Santamaria (@raysan5)
 *
 *   This software is provided "as-is", without any express or implied warranty. In no event
 *   will the authors be held liable for any damages arising from the use of this software.
@@ -2846,21 +2846,23 @@ static Model LoadOBJ(const char *fileName)
             } tinyobj_material_t;
             */
 
-            model.materials[m].maps[MAP_DIFFUSE].texture = LoadTexture(materials[m].diffuse_texname);  //char *diffuse_texname; // map_Kd
+            model.materials[m].maps[MAP_DIFFUSE].texture = GetTextureDefault();     // Get default texture, in case no texture is defined
+            
+            if (materials[m].diffuse_texname != NULL) model.materials[m].maps[MAP_DIFFUSE].texture = LoadTexture(materials[m].diffuse_texname);  //char *diffuse_texname; // map_Kd
             model.materials[m].maps[MAP_DIFFUSE].color = (Color){ (float)(materials[m].diffuse[0]*255.0f), (float)(materials[m].diffuse[1]*255.0f), (float)(materials[m].diffuse[2]*255.0f), 255 }; //float diffuse[3];
             model.materials[m].maps[MAP_DIFFUSE].value = 0.0f;
 
-            model.materials[m].maps[MAP_SPECULAR].texture = LoadTexture(materials[m].specular_texname);  //char *specular_texname; // map_Ks
+            if (materials[m].specular_texname != NULL) model.materials[m].maps[MAP_SPECULAR].texture = LoadTexture(materials[m].specular_texname);  //char *specular_texname; // map_Ks
             model.materials[m].maps[MAP_SPECULAR].color = (Color){ (float)(materials[m].specular[0]*255.0f), (float)(materials[m].specular[1]*255.0f), (float)(materials[m].specular[2]*255.0f), 255 }; //float specular[3];
             model.materials[m].maps[MAP_SPECULAR].value = 0.0f;
 
-            model.materials[m].maps[MAP_NORMAL].texture = LoadTexture(materials[m].bump_texname);  //char *bump_texname; // map_bump, bump
+            if (materials[m].bump_texname != NULL) model.materials[m].maps[MAP_NORMAL].texture = LoadTexture(materials[m].bump_texname);  //char *bump_texname; // map_bump, bump
             model.materials[m].maps[MAP_NORMAL].color = WHITE;
             model.materials[m].maps[MAP_NORMAL].value = materials[m].shininess;
 
             model.materials[m].maps[MAP_EMISSION].color = (Color){ (float)(materials[m].emission[0]*255.0f), (float)(materials[m].emission[1]*255.0f), (float)(materials[m].emission[2]*255.0f), 255 }; //float emission[3];
 
-            model.materials[m].maps[MAP_HEIGHT].texture = LoadTexture(materials[m].displacement_texname);  //char *displacement_texname; // disp
+            if (materials[m].displacement_texname != NULL) model.materials[m].maps[MAP_HEIGHT].texture = LoadTexture(materials[m].displacement_texname);  //char *displacement_texname; // disp
         }
 
         tinyobj_attrib_free(&attrib);
@@ -3013,30 +3015,30 @@ static Model LoadIQM(const char *fileName)
     fread(imesh, sizeof(IQMMesh)*iqm.num_meshes, 1, iqmFile);
 
     model.meshCount = iqm.num_meshes;
-    model.meshes = malloc(sizeof(Mesh)*iqm.num_meshes);
+    model.meshes = malloc(model.meshCount*sizeof(Mesh));
 
     char name[MESH_NAME_LENGTH];
 
-    for (int i = 0; i < iqm.num_meshes; i++)
+    for (int i = 0; i < model.meshCount; i++)
     {
         fseek(iqmFile,iqm.ofs_text+imesh[i].name,SEEK_SET);
         fread(name, sizeof(char)*MESH_NAME_LENGTH, 1, iqmFile);     // Mesh name not used...
         model.meshes[i].vertexCount = imesh[i].num_vertexes;
 
-        model.meshes[i].vertices = malloc(sizeof(float)*imesh[i].num_vertexes*3);       // Default vertex positions
-        model.meshes[i].normals = malloc(sizeof(float)*imesh[i].num_vertexes*3);        // Default vertex normals
-        model.meshes[i].texcoords = malloc(sizeof(float)*imesh[i].num_vertexes*2);      // Default vertex texcoords
+        model.meshes[i].vertices = malloc(sizeof(float)*model.meshes[i].vertexCount*3);       // Default vertex positions
+        model.meshes[i].normals = malloc(sizeof(float)*model.meshes[i].vertexCount*3);        // Default vertex normals
+        model.meshes[i].texcoords = malloc(sizeof(float)*model.meshes[i].vertexCount*2);      // Default vertex texcoords
 
-        model.meshes[i].boneIds = malloc(sizeof(int)*imesh[i].num_vertexes*4);          // Up-to 4 bones supported!
-        model.meshes[i].boneWeights = malloc(sizeof(float)*imesh[i].num_vertexes*4);    // Up-to 4 bones supported!
+        model.meshes[i].boneIds = malloc(sizeof(int)*model.meshes[i].vertexCount*4);          // Up-to 4 bones supported!
+        model.meshes[i].boneWeights = malloc(sizeof(float)*model.meshes[i].vertexCount*4);    // Up-to 4 bones supported!
 
         model.meshes[i].triangleCount = imesh[i].num_triangles;
-        model.meshes[i].indices = malloc(sizeof(unsigned short)*imesh[i].num_triangles*3);
+        model.meshes[i].indices = malloc(sizeof(unsigned short)*model.meshes[i].triangleCount*3);
 
         // Animated verted data, what we actually process for rendering
         // NOTE: Animated vertex should be re-uploaded to GPU (if not using GPU skinning)
-        model.meshes[i].animVertices = malloc(sizeof(float)*imesh[i].num_vertexes*3);
-        model.meshes[i].animNormals = malloc(sizeof(float)*imesh[i].num_vertexes*3);
+        model.meshes[i].animVertices = malloc(sizeof(float)*model.meshes[i].vertexCount*3);
+        model.meshes[i].animNormals = malloc(sizeof(float)*model.meshes[i].vertexCount*3);
     }
 
     // Triangles data processing
@@ -3044,15 +3046,15 @@ static Model LoadIQM(const char *fileName)
     fseek(iqmFile, iqm.ofs_triangles, SEEK_SET);
     fread(tri, sizeof(IQMTriangle)*iqm.num_triangles, 1, iqmFile);
 
-    for (int m = 0; m < iqm.num_meshes; m++)
+    for (int m = 0; m < model.meshCount; m++)
     {
         int tcounter = 0;
 
-        for (int i = imesh[m].first_triangle; i < imesh[m].first_triangle+imesh[m].num_triangles; i++)
+        for (int i = imesh[m].first_triangle; i < (imesh[m].first_triangle + imesh[m].num_triangles); i++)
         {
             // IQM triangles are stored counter clockwise, but raylib sets opengl to clockwise drawing, so we swap them around
-            model.meshes[m].indices[tcounter+2] = tri[i].vertex[0] - imesh[m].first_vertex;
-            model.meshes[m].indices[tcounter+1] = tri[i].vertex[1] - imesh[m].first_vertex;
+            model.meshes[m].indices[tcounter + 2] = tri[i].vertex[0] - imesh[m].first_vertex;
+            model.meshes[m].indices[tcounter + 1] = tri[i].vertex[1] - imesh[m].first_vertex;
             model.meshes[m].indices[tcounter] = tri[i].vertex[2] - imesh[m].first_vertex;
             tcounter += 3;
         }
@@ -3235,7 +3237,7 @@ static Model LoadGLTF(const char *fileName)
     fclose(gltfFile);
 
     // glTF data loading
-    cgltf_options options = {0};
+    cgltf_options options = { 0 };
     cgltf_data *data;
     cgltf_result result = cgltf_parse(&options, buffer, size, &data);
 
@@ -3243,11 +3245,33 @@ static Model LoadGLTF(const char *fileName)
 
     if (result == cgltf_result_success)
     {
-        // printf("Type: %u\n", data.file_type);
-        // printf("Version: %d\n", data.version);
-        // printf("Meshes: %lu\n", data.meshes_count);
+        TraceLog(LOG_INFO, "[%s][%s] Model meshes/materials: %i/%i", (data->file_type == 2)? "glb" : "gltf", data->meshes_count, data->materials_count);
 
-        // TODO: Process glTF data and map to model
+        // Read data buffers
+        result = cgltf_load_buffers(&options, data, fileName);
+
+        // Process glTF data and map to model
+        model.meshCount = data->meshes_count;
+        model.meshes = malloc(model.meshCount*sizeof(Mesh));
+        
+        for (int i = 0; i < model.meshCount; i++)
+        {
+            // NOTE: Only support meshes defined by triangle primitives
+            //if (data->meshes[i].primitives[n].type == cgltf_primitive_type_triangles)
+            {
+                // data.meshes[i].name not used
+                model.meshes[i].vertexCount = data->meshes[i].primitives_count*3;
+                model.meshes[i].triangleCount = data->meshes[i].primitives_count;
+                // data.meshes[i].weights not used (array of weights to be applied to the Morph Targets)
+
+                model.meshes[i].vertices = malloc(sizeof(float)*model.meshes[i].vertexCount*3);       // Default vertex positions
+                model.meshes[i].normals = malloc(sizeof(float)*model.meshes[i].vertexCount*3);        // Default vertex normals
+                model.meshes[i].texcoords = malloc(sizeof(float)*model.meshes[i].vertexCount*2);      // Default vertex texcoords
+
+                model.meshes[i].indices = malloc(sizeof(unsigned short)*model.meshes[i].triangleCount*3);
+
+            }
+        }
 
         // NOTE: data.buffers[] should be loaded to model.meshes and data.images[] should be loaded to model.materials
         // Use buffers[n].uri and images[n].uri... or use cgltf_load_buffers(&options, data, fileName);
