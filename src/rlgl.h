@@ -1672,8 +1672,8 @@ void rlglInit(int width, int height)
     // NOTE: All shapes/models triangles are drawn CCW
     glCullFace(GL_BACK);                                    // Cull the back face (default)
     glFrontFace(GL_CCW);                                    // Front face are defined counter clockwise (default)
-    glEnable(GL_CULL_FACE);                                 // Enable backface culling
-
+    // glEnable(GL_CULL_FACE);                                 // Enable backface culling
+    glDisable(GL_CULL_FACE);                        
 #if defined(GRAPHICS_API_OPENGL_11)
     // Init state: Color hints (deprecated in OpenGL 3.0+)
     glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);      // Improve quality of color and texture coordinate interpolation
@@ -3208,6 +3208,7 @@ Texture2D GenTextureCubemap(Shader shader, Texture2D skyHDR, int size)
 
     // Reset viewport dimensions to default
     glViewport(0, 0, screenWidth, screenHeight);
+    //glEnable(GL_CULL_FACE);
     //glEnable(GL_CULL_FACE);
 
     // NOTE: Texture2D is a GL_TEXTURE_CUBE_MAP, not a GL_TEXTURE_2D!
