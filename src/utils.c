@@ -11,7 +11,7 @@
 *
 *   LICENSE: zlib/libpng
 *
-*   Copyright (c) 2014-2019 Ramon Santamaria (@raysan5)
+*   Copyright (c) 2014-2020 Ramon Santamaria (@raysan5)
 *
 *   This software is provided "as-is", without any express or implied warranty. In no event
 *   will the authors be held liable for any damages arising from the use of this software.
@@ -46,30 +46,38 @@
 #endif
 
 #include <stdlib.h>                     // Required for: exit()
-#include <stdio.h>                      // Required for: printf(), sprintf()
-#include <stdarg.h>                     // Required for: va_list, va_start(), vfprintf(), va_end()
+#include <stdio.h>                      // Required for: vprintf()
+#include <stdarg.h>                     // Required for: va_list, va_start(), va_end()
 #include <string.h>                     // Required for: strcpy(), strcat()
 
 #define MAX_TRACELOG_BUFFER_SIZE   128  // Max length of one trace-log message
+
+#define MAX_UWP_MESSAGES 512            // Max UWP messages to process
 
 //----------------------------------------------------------------------------------
 // Global Variables Definition
 //----------------------------------------------------------------------------------
 
 // Log types messages
-static int logTypeLevel = LOG_INFO;
-static int logTypeExit = LOG_ERROR;
-static TraceLogCallback logCallback = NULL;
+static int logTypeLevel = LOG_INFO;                     // Minimum log type level
+static int logTypeExit = LOG_ERROR;                     // Log type that exits
+static TraceLogCallback logCallback = NULL;             // Log callback function pointer
 
 #if defined(PLATFORM_ANDROID)
-AAssetManager *assetManager;
+static AAssetManager *assetManager = NULL;              // Android assets manager pointer 
+#endif
+
+#if defined(PLATFORM_UWP)
+static int UWPOutMessageId = -1;                        // Last index of output message
+static UWPMessage *UWPOutMessages[MAX_UWP_MESSAGES];    // Messages out to UWP
+static int UWPInMessageId = -1;                         // Last index of input message
+static UWPMessage *UWPInMessages[MAX_UWP_MESSAGES];     // Messages in from UWP
 #endif
 
 //----------------------------------------------------------------------------------
 // Module specific Functions Declaration
 //----------------------------------------------------------------------------------
 #if defined(PLATFORM_ANDROID)
-// This should be in <stdio.h>, but Travis does not find it...
 FILE *funopen(const void *cookie, int (*readfn)(void *, char *, int), int (*writefn)(void *, const char *, int),
               fpos_t (*seekfn)(void *, fpos_t, int), int (*closefn)(void *));
 
@@ -186,7 +194,7 @@ static int android_read(void *cookie, char *buf, int size)
 
 static int android_write(void *cookie, const char *buf, int size)
 {
-    TraceLog(LOG_ERROR, "Can't provide write access to the APK");
+    TRACELOG(LOG_ERROR, "Can't provide write access to the APK");
 
     return EACCES;
 }
@@ -204,16 +212,7 @@ static int android_close(void *cookie)
 #endif  // PLATFORM_ANDROID
 
 #if defined(PLATFORM_UWP)
-
-#define MAX_MESSAGES 512 // If there are over 128 messages, I will cry... either way, this may be too much EDIT: Welp, 512
-
-static int UWPOutMessageId = -1; // Stores the last index for the message
-static UWPMessage* UWPOutMessages[MAX_MESSAGES]; // Messages out to UWP
-
-static int UWPInMessageId = -1; // Stores the last index for the message
-static UWPMessage* UWPInMessages[MAX_MESSAGES]; // Messages in from UWP
-
-UWPMessage* CreateUWPMessage(void)
+UWPMessage *CreateUWPMessage(void)
 {
     UWPMessage *msg = (UWPMessage *)RL_MALLOC(sizeof(UWPMessage));
     msg->type = UWP_MSG_NONE;
@@ -247,22 +246,22 @@ UWPMessage *UWPGetMessage(void)
 
 void UWPSendMessage(UWPMessage *msg)
 {
-    if (UWPInMessageId + 1 < MAX_MESSAGES)
+    if ((UWPInMessageId + 1) < MAX_UWP_MESSAGES)
     {
         UWPInMessageId++;
         UWPInMessages[UWPInMessageId] = msg;
     }
-    else TraceLog(LOG_WARNING, "[UWP Messaging] Not enough array space to register new UWP inbound Message.");
+    else TRACELOG(LOG_WARNING, "[UWP Messaging] Not enough array space to register new UWP inbound Message.");
 }
 
 void SendMessageToUWP(UWPMessage *msg)
 {
-    if (UWPOutMessageId + 1 < MAX_MESSAGES)
+    if ((UWPOutMessageId + 1) < MAX_UWP_MESSAGES)
     {
         UWPOutMessageId++;
         UWPOutMessages[UWPOutMessageId] = msg;
     }
-    else TraceLog(LOG_WARNING, "[UWP Messaging] Not enough array space to register new UWP outward Message.");
+    else TRACELOG(LOG_WARNING, "[UWP Messaging] Not enough array space to register new UWP outward Message.");
 }
 
 bool HasMessageFromUWP(void)
@@ -270,7 +269,7 @@ bool HasMessageFromUWP(void)
     return UWPInMessageId > -1;
 }
 
-UWPMessage* GetMessageFromUWP(void)
+UWPMessage *GetMessageFromUWP(void)
 {
     if (HasMessageFromUWP()) return UWPInMessages[UWPInMessageId--];
 

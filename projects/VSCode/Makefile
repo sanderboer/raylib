@@ -26,11 +26,13 @@
 # Define required raylib variables
 PROJECT_NAME       ?= game
 RAYLIB_VERSION     ?= 2.5.0
-RAYLIB_API_VERSION ?= 2
-RAYLIB_PATH        ?= C:\GitHub\raylib
+RAYLIB_API_VERSION ?= 251
+RAYLIB_PATH        ?= ..\..
+
+# Define compiler path on Windows
+COMPILER_PATH      ?= C:/raylib/mingw/bin
 
 # Define default options
-
 # One of PLATFORM_DESKTOP, PLATFORM_RPI, PLATFORM_ANDROID, PLATFORM_WEB
 PLATFORM           ?= PLATFORM_DESKTOP
 
@@ -68,6 +70,7 @@ ifeq ($(PLATFORM),PLATFORM_DESKTOP)
     # ifeq ($(UNAME),Msys) -> Windows
     ifeq ($(OS),Windows_NT)
         PLATFORM_OS=WINDOWS
+        export PATH := $(COMPILER_PATH):$(PATH)
     else
         UNAMEOS=$(shell uname)
         ifeq ($(UNAMEOS),Linux)
@@ -180,18 +183,21 @@ ifeq ($(PLATFORM),PLATFORM_DESKTOP)
 endif
 
 # Define compiler flags:
+#  -O0                  defines optimization level (no optimization, better for debugging)
 #  -O1                  defines optimization level
 #  -g                   include debug information on compilation
-#  -s                   strip unnecessary data from build
+#  -s                   strip unnecessary data from build -> do not use in debug builds
 #  -Wall                turns on most, but not all, compiler warnings
 #  -std=c99             defines C language mode (standard C from 1999 revision)
 #  -std=gnu99           defines C language mode (GNU C from 1999 revision)
 #  -Wno-missing-braces  ignore invalid warning (GCC bug 53119)
 #  -D_DEFAULT_SOURCE    use with -std=c99 on Linux and PLATFORM_WEB, required for timespec
-CFLAGS += -O1 -s -Wall -std=c99 -D_DEFAULT_SOURCE -Wno-missing-braces
+CFLAGS += -Wall -std=c99 -D_DEFAULT_SOURCE -Wno-missing-braces
 
 ifeq ($(BUILD_MODE),DEBUG)
-    CFLAGS += -g
+    CFLAGS += -g -O0
+else
+    CFLAGS += -s -O1
 endif
 
 # Additional flags for compiler (if desired)
@@ -200,7 +206,7 @@ ifeq ($(PLATFORM),PLATFORM_DESKTOP)
     ifeq ($(PLATFORM_OS),WINDOWS)
         # resource file contains windows executable icon and properties
         # -Wl,--subsystem,windows hides the console window
-        CFLAGS += $(RAYLIB_PATH)/raylib.rc.data -Wl,--subsystem,windows
+        CFLAGS += $(RAYLIB_PATH)/src/raylib.rc.data -Wl,--subsystem,windows
     endif
     ifeq ($(PLATFORM_OS),LINUX)
         ifeq ($(RAYLIB_LIBTYPE),STATIC)
@@ -236,7 +242,7 @@ ifeq ($(PLATFORM),PLATFORM_WEB)
     endif
 
     # Define a custom shell .html and output extension
-    CFLAGS += --shell-file $(RAYLIB_PATH)\src\shell.html
+    CFLAGS += --shell-file $(RAYLIB_PATH)/src/shell.html
     EXT = .html
 endif
 

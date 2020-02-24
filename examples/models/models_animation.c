@@ -5,10 +5,19 @@
 *   This example has been created using raylib 2.5 (www.raylib.com)
 *   raylib is licensed under an unmodified zlib/libpng license (View raylib.h for details)
 *
-*   Copyright (c) 2019 Ramon Santamaria (@raysan5) and @culacant
+*   Example contributed by Culacant (@culacant) and reviewed by Ramon Santamaria (@raysan5)
+*
+*   Copyright (c) 2019 Culacant (@culacant) and Ramon Santamaria (@raysan5)
+*
+********************************************************************************************
+*
+* To export a model from blender, make sure it is not posed, the vertices need to be in the 
+* same position as they would be in edit mode.
+* and that the scale of your models is set to 0. Scaling can be done from the export menu.
 *
 ********************************************************************************************/
 
+#include <stdlib.h>
 #include "raylib.h"
 
 int main(void)
@@ -89,8 +98,11 @@ int main(void)
 
     // De-Initialization
     //--------------------------------------------------------------------------------------
+    UnloadTexture(texture);     // Unload texture
+    
     // Unload model animations data
     for (int i = 0; i < animsCount; i++) UnloadModelAnimation(anims[i]);
+    RL_FREE(anims);
 
     UnloadModel(model);         // Unload model
 

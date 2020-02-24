@@ -30,6 +30,7 @@ Thumbs.db
 *.cache
 *.ilk
 *.log
+
 [Bb]in
 [Dd]ebug/
 [Dd]ebug.win32/
@@ -52,6 +53,7 @@ packages/
 *.exe
 *.a
 *.bc
+*.so
 !raylib.rc.o
 
 # Ignore all examples files
@@ -110,6 +112,10 @@ docs/examples/web/*/*.html
 !docs/examples/web/physac/loader.html
 !docs/examples/web/shaders/loader.html
 !docs/examples/web/models/loader.html
+
+# Jetbrains project
+.idea/
+cmake-build-debug/
 
 # CMake stuff
 CMakeCache.txt

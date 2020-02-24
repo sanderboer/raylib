@@ -8,7 +8,7 @@
 *   This game has been created using raylib (www.raylib.com)
 *   raylib is licensed under an unmodified zlib/libpng license (View raylib.h for details)
 *
-*   Copyright (c) 2014-2019 Ramon Santamaria (@raysan5)
+*   Copyright (c) 2014-2020 Ramon Santamaria (@raysan5)
 *
 ********************************************************************************************/
 
@@ -18,6 +18,11 @@
 #if defined(PLATFORM_WEB)
     #include <emscripten/emscripten.h>
 #endif
+
+GameScreen currentScreen = 0;
+Font font = { 0 };
+Music music = { 0 };
+Sound fxCoin = { 0 };
 
 //----------------------------------------------------------------------------------
 // Global Variables Definition (local to this module)
@@ -153,7 +158,7 @@ static void UpdateTransition(void)
 {
     if (!transFadeOut)
     {
-        transAlpha += 0.02f;
+        transAlpha += 0.05f;
         
         // NOTE: Due to float internal representation, condition jumps on 1.0f instead of 1.05f
         // For that reason we compare against 1.01f, to avoid last frame loading stop

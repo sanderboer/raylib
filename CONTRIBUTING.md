@@ -6,26 +6,26 @@ Do you enjoy raylib and want to contribute? Nice! You can help with the followin
 
 - C programming - Can you write/review/test/improve the code? 
 - Documentation/Tutorials/Example - Can you write some tutorial/example?
-- Web Development - Can you help [with the web](https://github.com/raysan5/raylib.com)?
-- Porting to other platforms - Can you port and compile raylib on another systems?
-- Testing - Can you find some bugs on raylib?
+- Web Development - Can you help [with the website](https://github.com/raysan5/raylib.com)?
+- Porting to other platforms - Can you port and compile raylib on other systems?
+- Testing - Can you find some bugs in raylib?
 
 This document contains a set of guidelines to contribute to the project. These are mostly guidelines, not rules. 
-Use your best judgement, and feel free to propose changes to this document in a pull-request.
+Use your best judgement, and feel free to propose changes to this document in a pull request.
 
 ### raylib philosophy
 
  - raylib is a tool to enjoy videogames programming, every single function in raylib should be a tutorial on itself.
  - raylib is SIMPLE and EASY-TO-USE, I tried to keep it compact with a small set of functions, if a function is too complex or is not clearly useful, better not to include it.
  - raylib is open source and free; educators and institutions can use this tool to TEACH videogames programming completely by free.
- - raylib is collaborative; contribution of tutorials / code-examples / bugs-solving / code-comments are highly appreciated.
+ - raylib is collaborative; contribution of tutorials / code examples / bug fixes / code comments are highly appreciated.
  - raylib's license (and its external libs respective licenses) allow using it for commercial products.
 
 ### Some interesting reads to start with
 
  - [raylib history](HISTORY.md)
  - [raylib architecture](https://github.com/raysan5/raylib/wiki/raylib-architecture)
- - [raylib license](LICENSE.md)
+ - [raylib license](LICENSE)
  - [raylib roadmap](ROADMAP.md)
  
 [raylib Wiki](https://github.com/raysan5/raylib/wiki) contains some information about the library and is open to anyone for edit. 
@@ -42,7 +42,7 @@ Source code is extensively commented for that purpose, raylib primary learning m
 
  > learn by reading code and examples
 
-For detailed information on building raylib and examples, please check [raylib Wiki](https://github.com/raysan5/raylib/wiki).
+For detailed information on building raylib and examples, please see [raylib Wiki](https://github.com/raysan5/raylib/wiki).
 
 ### Opening new Issues
 
@@ -53,13 +53,13 @@ To open new issue for raylib (bug, enhancement, discussion...), just try to foll
  title and clear description, as much relevant information as possible, and a code sample demonstrating the unexpected behavior.
  - If applies, attach some screenshot of the issue and a .zip file with the code sample and required resources.
  - On issue description, add a brackets tag about the raylib module that relates to this issue. 
- If don't know the module, just report the issue, I will review it.
+ If don't know which module, just report the issue, I will review it.
  - You can check other issues to see how is being done!
 
 ### Sending a Pull-Request
 
  - Make sure the PR description clearly describes the problem and solution. Include the relevant issue number if applicable.
- - Don't send big pull-requests (lots of changelists), they are difficult to review. It's better to send small pull-request, one at a time.
+ - Don't send big pull requests (lots of changelists), they are difficult to review. It's better to send small pull requests, one at a time.
  - Verify that changes don't break the build (at least on Windows platform). As many platforms where you can test it, the better, but don't worry
  if you cannot test all the platforms.
 
@@ -107,15 +107,13 @@ contributing (in some way or another) to make the raylib project better. Huge th
  - [Richard Goodwin](https://github.com/AudioMorphology) for adding RPI touchscreen support.
  - [Milan Nikolic](https://github.com/gen2brain) for adding Android build support with custom standalone toolchain.
  - [Michael Vetter](https://github.com/jubalh) for improvements on build system and his work on Suse Linux package... and multiple fixes!
- - [Wilhem Barbier](https://github.com/nounoursheureux) for adding Image generation functions and some fixes.
+ - [Wilhem Barbier](https://github.com/nounoursheureux) for adding Image generation functions, shaders work and some fixes.
  - [Benjamin Summerton](https://github.com/define-private-public) for improving OSX building and his amazing work on CMake build sytem.
  - [MartinFX](https://github.com/Martinfx) for adding compilation support for FreeBSD OS and derivatives.
- - [Wilhem Barbier](https://github.com/nounoursheureux) for supporting default shaders on shader loading, if shader not provided.
  - [Ahmad Fatoum](https://github.com/a3f) for implementing CI support for raylib (Travis and AppVeyor) and great improvements on build system.
  - [SamNChiet](https://github.com/SamNChiet) for a greatly improved UWP input implementation.
  - [David Reid](https://github.com/mackron) for a complete review of audio module to support his amazing miniaudio library.
  - [Kai](https://github.com/questor) for multiple code reviews and improvements.
- - [RDR8](https://github.com/RDR8) for improvements on Makefiles for Linux.
  - [Max Danielsson](https://github.com/autious) for adding support for orthographic 3d camera projection
  - [Lumaio](https://github.com/TheLumaio) for his great work on GBuffers and GetCollisionRayModel().
  - [Jonas Daeyaert](https://github.com/culacant) for an amazing work on IQM animated models support.
@@ -132,5 +130,7 @@ contributing (in some way or another) to make the raylib project better. Huge th
  - [Anata](https://github.com/anatagawa) for creating amazing examples and contributing with them
  - [Narice](https://github.com/narice) made easings.h includable as standalone header
  - [Eric J.](https://github.com/ProfJski) for shaders_eratosthenes example contribution
+ - [PompPenguin](https://github.com/PompPenguin) for reviewing 3rd person camera
+ - [Mohamed Shazan](https://github.com/msmshazan) for adding support for ANGLE graphics backend
  
 Please, if I forget someone in this list, excuse me and send a PR!
