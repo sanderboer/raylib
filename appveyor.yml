@@ -20,16 +20,12 @@ environment:
   matrix:
     - compiler: mingw
       bits: 32
-      examples: ON
     - compiler: mingw
       bits: 64
-      examples: ON
     - compiler: msvc15
       bits: 32
-      examples: OFF
     - compiler: msvc15
       bits: 64
-      examples: OFF
 
 before_build:
   - if [%compiler%]==[mingw] set CFLAGS=-m%BITS% & set LDFLAGS=-m%BITS% & set GENERATOR="MinGW Makefiles"
@@ -39,7 +35,7 @@ before_build:
   - cd build
 
 build_script:
-  - cmake -G %GENERATOR% -DSTATIC=ON -DSHARED=ON -DBUILD_EXAMPLES=%examples% -DBUILD_GAMES=%examples% -DINCLUDE_EVERYTHING=ON ..
+  - cmake -G %GENERATOR% -DSTATIC=ON -DSHARED=ON -DINCLUDE_EVERYTHING=ON ..
   - cmake --build . --target install
 
 after_build:
