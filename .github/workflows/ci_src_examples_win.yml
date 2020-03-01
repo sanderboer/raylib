@@ -56,7 +56,7 @@ jobs:
       if: matrix.compiler == 'mingw'
 
     - name: Setup CMake Project
-      run: cmake -G "${{ matrix.GENERATOR }}" ${{ matrix.ARCH }} -DCMAKE_SH="CMAKE_SH-NOTFOUND" -DSTATIC=ON -DSHARED=ON -DBUILD_EXAMPLES=ON -DBUILD_GAMES=OFF -DINCLUDE_EVERYTHING=ON ../raylib
+      run: cmake -G "${{ matrix.GENERATOR }}" ${{ matrix.ARCH }} -DCMAKE_SH="CMAKE_SH-NOTFOUND" -DSTATIC=ON -DSHARED=ON -DINCLUDE_EVERYTHING=ON ../raylib
       if: matrix.compiler == 'msvc16'
       
     - name: Build raylib Source & Examples
